@@ -1,0 +1,15 @@
+# terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+terraform.tfvars
+
+# python
+__pycache__/
+*.pyc
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/
