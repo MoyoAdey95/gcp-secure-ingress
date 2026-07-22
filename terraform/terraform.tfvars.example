@@ -1,0 +1,10 @@
+# Copy to terraform.tfvars and edit. terraform.tfvars is gitignored.
+
+project_id = "your-lab-project-id"
+region     = "europe-west1"
+
+# Push app/ to a registry (see gcp-terraform-lab for the flow) and set:
+# image = "europe-west1-docker.pkg.dev/your-lab-project-id/tf-lab-images/secure-ingress-demo:0.1.0"
+
+# Optional, enables managed cert + HTTPS. Point an A record at lb_ip first.
+# domain = "lab.yourdomain.com"
