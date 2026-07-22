@@ -1,0 +1,67 @@
+Test matrix run, 22 July 2026, against moyo-cloud-lab.
+LB=http://34.8.124.133
+DIRECT=https://sec-ingress-backend-awypnoptaa-ew.a.run.app
+
+--- Test 1: curl -i $LB/api/public/info ---
+HTTP/1.1 200 OK
+content-type: application/json
+{"service":"secure-ingress-demo","visibility":"public"}
+
+--- Test 2: curl -i $LB/healthz ---
+HTTP/1.1 200 OK
+content-type: application/json
+{"status":"ok"}
+
+--- Test 3: curl -i $LB/api/admin/config ---
+HTTP/1.1 403 Forbidden
+content-type: text/html; charset=UTF-8
+<!doctype html><meta charset="utf-8">...<title>403</title>403 Forbidden
+
+--- Test 4: curl -i $LB/ ---
+HTTP/1.1 403 Forbidden
+content-type: text/html; charset=UTF-8
+<!doctype html><meta charset="utf-8">...<title>403</title>403 Forbidden
+
+--- Test 5: curl -i $LB/api/publicX/info ---
+HTTP/1.1 403 Forbidden
+content-type: text/html; charset=UTF-8
+<!doctype html><meta charset="utf-8">...<title>403</title>403 Forbidden
+
+--- Test 6: curl -i $DIRECT/api/public/info ---
+HTTP/2 404
+content-type: text/html; charset=UTF-8
+<html><head><title>404 Page not found</title></head>
+<body><h1>Error: Page not found</h1>
+<h2>The requested URL was not found on this server.</h2></body></html>
+(Cloud Run's own ingress-rejection page.)
+
+--- Test 7: curl -i $DIRECT/healthz ---
+HTTP/2 404
+content-type: text/html; charset=UTF-8
+<!DOCTYPE html><title>Error 404 (Not Found)!!1</title>
+<p><b>404.</b> <ins>That's an error.</ins>
+<p>The requested URL /healthz was not found on this server. <ins>That's all we know.</ins>
+(Google's generic frontend 404, a different page than test 6. See notes in test-matrix.md.)
+
+--- Test 8: rate limit, before fixing the dead throttle rule ---
+$ for i in $(seq 1 150); do curl -s -o /dev/null -w "%{http_code}\n" $LB/api/public/info; done | sort | uniq -c
+ 150 200
+(No 429s. A plain allow rule at priority 1000 matched the same path as the
+throttle rule at priority 1100 and always won, so the throttle never ran.
+Fixed by moving the throttle to priority 900. See armor.tf.)
+
+--- Test 8: rate limit, immediately after the fix ---
+$ time (for i in $(seq 1 150); do curl -s -o /dev/null -w "%{http_code}\n" $LB/api/public/info; done | sort | uniq -c)
+ 150 200
+(Rule confirmed live via gcloud, preview: false, correct threshold. Still no
+429s. Cloud Armor's rate-limit propagation took longer than the plain
+allow/deny changes had.)
+
+--- Test 8: rate limit, after waiting longer ---
+$ for i in $(seq 1 250); do curl -s -o /dev/null -m 5 -w "%{http_code}\n" $LB/api/public/info; done | sort | uniq -c
+   1 000
+  59 200
+ 190 429
+(Threshold is 60 requests/minute per IP. 59 conforming then 429s once the
+counter crossed it. The single 000 is one request that hit the 5-second
+client-side timeout, unrelated to the rate limit itself.)
