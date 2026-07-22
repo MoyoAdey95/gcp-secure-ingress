@@ -9,8 +9,8 @@
 
 | Path | Intended audience | Enforced by |
 |------|-------------------|-------------|
-| `/api/public/*` | internet | Cloud Armor allow rule (priority 1000) |
-| `/healthz` | internet (uptime checks) | Cloud Armor allow rule |
+| `/api/public/*` | internet | Cloud Armor throttled allow rule (priority 900) |
+| `/healthz` | internet (uptime checks) | Cloud Armor allow rule (priority 1000) |
 | `/api/admin/*` | nobody, externally | Cloud Armor default deny (403) |
 | any path via `*.run.app` | nobody | Cloud Run ingress = `INTERNAL_LOAD_BALANCER` |
 
