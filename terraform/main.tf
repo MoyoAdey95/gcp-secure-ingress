@@ -16,9 +16,10 @@ resource "google_project_service" "required" {
 # ingress setting. Without it, the default *.run.app URL would bypass the
 # load balancer, and therefore Cloud Armor, entirely.
 resource "google_cloud_run_v2_service" "backend" {
-  name     = "${var.name_prefix}-backend"
-  location = var.region
-  ingress  = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  name                = "${var.name_prefix}-backend"
+  location            = var.region
+  ingress             = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  deletion_protection = false
 
   template {
     scaling {
