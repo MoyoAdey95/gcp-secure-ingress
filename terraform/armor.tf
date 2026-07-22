@@ -5,22 +5,16 @@ resource "google_compute_security_policy" "edge" {
   name        = "${var.name_prefix}-edge-policy"
   description = "Route allowlist + rate limiting for the demo backend"
 
-  # 1000: allow the public API routes and the health endpoint
-  rule {
-    action   = "allow"
-    priority = 1000
-    match {
-      expr {
-        expression = "request.path.startsWith('/api/public/') || request.path == '/healthz'"
-      }
-    }
-    description = "allow public routes"
-  }
-
-  # 1100: throttle clients that hammer the allowed routes
+  # 900: rate-limited allow for the public API routes. This has to run
+  # before any unconditional allow for the same path. Cloud Armor stops at
+  # the first matching rule, so a plain allow at a lower priority number
+  # would win first and this throttle would never run. The first version
+  # failed this way. It had a separate allow rule at priority 1000, and
+  # every request matching /api/public/* was already resolved by that
+  # earlier rule, so the throttle rule below never got evaluated.
   rule {
     action   = "throttle"
-    priority = 1100
+    priority = 900
     match {
       expr {
         expression = "request.path.startsWith('/api/public/')"
@@ -35,7 +29,20 @@ resource "google_compute_security_policy" "edge" {
         interval_sec = 60
       }
     }
-    description = "per-IP rate limit on public routes"
+    description = "rate-limited allow for public routes"
+  }
+
+  # 1000: plain allow for the health endpoint. Not rate-limited on purpose,
+  # uptime checks shouldn't get throttled.
+  rule {
+    action   = "allow"
+    priority = 1000
+    match {
+      expr {
+        expression = "request.path == '/healthz'"
+      }
+    }
+    description = "allow health check"
   }
 
   # 2147483647: default rule (required), deny everything else
